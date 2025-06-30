@@ -501,3 +501,56 @@ def add_new_analyst(
         content={"message": 'User with role "analyst" created.'},
         status_code=status.HTTP_201_CREATED,
     )
+
+
+@router.post("/delete_user")
+def delete_user(
+    user: Annotated[User, Depends(get_current_user)],
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    session: Annotated[Session, Depends(get_session)],
+) -> JSONResponse:
+    """ Delete a user from the database.
+
+    Args:
+        user Annotated[User, Depends(get_current_user)]: User who has the rights to delete users (only admin, unless the user is deleting themselves)
+        form_data Annotated[OAuth2PasswordRequestForm, Depends()]: User to be deleted (only username is required: deletion only by this user or admin)
+        session Annotated[Session, Depends(get_session)]: the database session from which the user is deleted.
+
+    Returns:
+        JSONResponse:
+
+    Raises:
+        HTTPException:
+    """
+
+    # The user to be deleted
+    del_user = get_user(session, form_data.username)
+
+    if not del_user:
+        raise HTTPException(
+            detail="No such user found!",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+    # Check if the user is deleting themselves or if the user is an admin
+    if not (del_user.username == user.username or user.role == UserRole.admin):
+        raise HTTPException(
+            detail="Insufficient rights to delete this user!",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
+    
+    session.delete(del_user)
+    session.commit()
+
+    # Check that the user was actually deleted.
+    if get_user(session=session, username=form_data.username):
+        raise HTTPException(
+            detail="User was not deleted from the database",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    response = JSONResponse(
+        content={"message": "User deleted"},
+        status_code=status.HTTP_200_OK
+    )
+    return response

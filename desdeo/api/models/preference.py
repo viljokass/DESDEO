@@ -5,10 +5,12 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 from sqlalchemy.types import TypeDecorator
 from sqlmodel import JSON, Column, Field, Relationship, SQLModel
 
-from .problem import ProblemDB
+# from .problem import ProblemDB
 
 if TYPE_CHECKING:
     from .user import User
+    from .state import StateDB
+    from .problem import ProblemDB
 
 
 class PreferenceType(TypeDecorator):
@@ -78,11 +80,20 @@ class PreferenceDB(SQLModel, table=True):
     """Database model for storing preferences."""
 
     id: int | None = Field(primary_key=True, default=None)
-    user_id: int | None = Field(foreign_key="user.id", default=None)
-    problem_id: int | None = Field(foreign_key="problemdb.id", default=None)
+    user_id: int | None = Field(
+        foreign_key="user.id",
+        default=None,
+        ondelete="CASCADE"
+    )
+    problem_id: int | None = Field(
+        foreign_key="problemdb.id",
+        default=None,
+        ondelete="CASCADE",
+    )
 
     preference: PreferenceBase | None = Field(sa_column=Column(PreferenceType), default=None)
 
     # Back populates
     problem: "ProblemDB" = Relationship(back_populates="preferences")
     user: "User" = Relationship(back_populates="preferences")
+    states: list["StateDB"] = Relationship(back_populates="preference", cascade_delete=True)

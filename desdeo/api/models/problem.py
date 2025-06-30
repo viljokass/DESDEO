@@ -101,7 +101,7 @@ class ProblemDB(ProblemBase, table=True):
 
     # Database specific
     id: int | None = Field(primary_key=True, default=None)
-    user_id: int | None = Field(foreign_key="user.id", default=None)
+    user_id: int | None = Field(foreign_key="user.id", default=None, ondelete="CASCADE")
 
     # Model fields
     name: str = Field()
@@ -114,21 +114,60 @@ class ProblemDB(ProblemBase, table=True):
 
     # Back populates
     user: "User" = Relationship(back_populates="problems")
-    solutions: list["UserSavedSolutionDB"] = Relationship(back_populates="problem")
-    preferences: list["PreferenceDB"] = Relationship(back_populates="problem")
+    solutions: list["UserSavedSolutionDB"] = Relationship(
+        back_populates="problem",
+        cascade_delete=True, 
+    )
+    preferences: list["PreferenceDB"] = Relationship(
+        back_populates="problem", 
+        cascade_delete=True, 
+    )
 
-    # Populated by other models
-    constants: list["ConstantDB"] = Relationship(back_populates="problem")
-    tensor_constants: list["TensorConstantDB"] = Relationship(back_populates="problem")
-    variables: list["VariableDB"] = Relationship(back_populates="problem")
-    tensor_variables: list["TensorVariableDB"] = Relationship(back_populates="problem")
-    objectives: list["ObjectiveDB"] = Relationship(back_populates="problem")
-    constraints: list["ConstraintDB"] = Relationship(back_populates="problem")
-    scalarization_funcs: list["ScalarizationFunctionDB"] = Relationship(back_populates="problem")
-    extra_funcs: list["ExtraFunctionDB"] = Relationship(back_populates="problem")
-    discrete_representation: "DiscreteRepresentationDB" = Relationship(back_populates="problem")
-    simulators: list["SimulatorDB"] = Relationship(back_populates="problem")
-    problem_metadata: "ProblemMetaDataDB" = Relationship(back_populates="problem")
+    # Populated by other models (If problem is deleted, all should be deleted?)
+    constants: list["ConstantDB"] = Relationship(
+        back_populates="problem", 
+        cascade_delete=True, 
+    )
+    tensor_constants: list["TensorConstantDB"] = Relationship(
+        back_populates="problem", 
+        cascade_delete=True, 
+    )
+    variables: list["VariableDB"] = Relationship(
+        back_populates="problem", 
+        cascade_delete=True, 
+    )
+    tensor_variables: list["TensorVariableDB"] = Relationship(
+        back_populates="problem", 
+        cascade_delete=True, 
+    )
+    objectives: list["ObjectiveDB"] = Relationship(
+        back_populates="problem", 
+        cascade_delete=True, 
+    )
+    constraints: list["ConstraintDB"] = Relationship(
+        back_populates="problem", 
+        cascade_delete=True, 
+    )
+    scalarization_funcs: list["ScalarizationFunctionDB"] = Relationship(
+        back_populates="problem", 
+        cascade_delete=True, 
+    )
+    extra_funcs: list["ExtraFunctionDB"] = Relationship(
+        back_populates="problem", 
+        cascade_delete=True, 
+    )
+    discrete_representation: "DiscreteRepresentationDB" = Relationship(
+        back_populates="problem", 
+        cascade_delete=True, 
+    )
+    simulators: list["SimulatorDB"] = Relationship(
+        back_populates="problem", 
+        cascade_delete=True, 
+    )
+    problem_metadata: "ProblemMetaDataDB" = Relationship(
+        back_populates="problem", 
+        cascade_delete=True, 
+    )
 
     @classmethod
     def from_problem(cls, problem_instance: Problem, user: "User") -> "ProblemDB":
@@ -241,7 +280,11 @@ class ForestProblemMetaData(BaseProblemMetaData):
 class ProblemMetaDataDB(SQLModel, table=True):
     """Store Problem MetaData to DB with this class"""
     id: int | None = Field(primary_key=True, default=None)
-    problem_id: int | None = Field(foreign_key="problemdb.id", default=None)
+    problem_id: int | None = Field(
+        foreign_key="problemdb.id",
+        default=None,
+        ondelete="CASCADE"
+    )
     data: list[BaseProblemMetaData] | None = Field(sa_column=Column(ProblemMetaDataListType), default=None)
 
     problem: ProblemDB | None = Relationship(back_populates="problem_metadata")
@@ -362,7 +405,11 @@ class TensorConstantDB(_BaseTensorConstantDB, table=True):
     """The SQLModel equivalent to `TensorConstant`."""
 
     id: int | None = Field(primary_key=True, default=None)
-    problem_id: int | None = Field(default=None, foreign_key="problemdb.id")
+    problem_id: int | None = Field(
+        foreign_key="problemdb.id",
+        default=None,
+        ondelete="CASCADE"
+    )
 
     # Back populates
     problem: ProblemDB | None = Relationship(back_populates="tensor_constants")
@@ -375,7 +422,11 @@ class ConstantDB(_ConstantDB, table=True):
     """The SQLModel equivalent to `Constant`."""
 
     id: int | None = Field(primary_key=True, default=None)
-    problem_id: int | None = Field(foreign_key="problemdb.id", default=None)
+    problem_id: int | None = Field(
+        foreign_key="problemdb.id",
+        default=None,
+        ondelete="CASCADE"
+    )
 
     # Back populates
     problem: ProblemDB | None = Relationship(back_populates="constants")
@@ -390,7 +441,11 @@ class VariableDB(_VariableDB, table=True):
     """The SQLModel equivalent to `Variable`."""
 
     id: int | None = Field(primary_key=True, default=None)
-    problem_id: int | None = Field(foreign_key="problemdb.id", default=None)
+    problem_id: int | None = Field(
+        foreign_key="problemdb.id",
+        default=None,
+        ondelete="CASCADE"
+    )
 
     # Back populates
     problem: ProblemDB | None = Relationship(back_populates="variables")
@@ -417,7 +472,11 @@ class TensorVariableDB(_TensorVariableDB, table=True):
     """The SQLModel equivalent to `TensorVariable`."""
 
     id: int | None = Field(primary_key=True, default=None)
-    problem_id: int | None = Field(foreign_key="problemdb.id", default=None)
+    problem_id: int | None = Field(
+        foreign_key="problemdb.id",
+        default=None,
+        ondelete="CASCADE"
+    )
 
     # Back populates
     problem: ProblemDB | None = Relationship(back_populates="tensor_variables")
@@ -444,7 +503,11 @@ class ObjectiveDB(_ObjectiveDB, table=True):
     """The SQLModel equivalent to `Objective`."""
 
     id: int | None = Field(primary_key=True, default=None)
-    problem_id: int | None = Field(foreign_key="problemdb.id", default=None)
+    problem_id: int | None = Field(
+        foreign_key="problemdb.id",
+        default=None,
+        ondelete="CASCADE"
+    )
 
     # Back populates
     problem: ProblemDB | None = Relationship(back_populates="objectives")
@@ -471,7 +534,11 @@ class ConstraintDB(_ConstraintDB, table=True):
     """The SQLModel equivalent to `Constraint`."""
 
     id: int | None = Field(primary_key=True, default=None)
-    problem_id: int | None = Field(foreign_key="problemdb.id", default=None)
+    problem_id: int | None = Field(
+        foreign_key="problemdb.id",
+        default=None,
+        ondelete="CASCADE"
+    )
 
     # Back populates
     problem: ProblemDB | None = Relationship(back_populates="constraints")
@@ -496,8 +563,11 @@ class ScalarizationFunctionDB(_ScalarizationFunctionDB, table=True):
     """The SQLModel equivalent to `ScalarizationFunction`."""
 
     id: int | None = Field(primary_key=True, default=None)
-    problem_id: int | None = Field(foreign_key="problemdb.id", default=None)
-
+    problem_id: int | None = Field(
+        foreign_key="problemdb.id",
+        default=None,
+        ondelete="CASCADE"
+    )
     # Back populates
     problem: ProblemDB | None = Relationship(back_populates="scalarization_funcs")
 
@@ -520,7 +590,11 @@ class ExtraFunctionDB(_ExtraFunctionDB, table=True):
     """The SQLModel equivalent to `ExtraFunction`."""
 
     id: int | None = Field(primary_key=True, default=None)
-    problem_id: int | None = Field(foreign_key="problemdb.id", default=None)
+    problem_id: int | None = Field(
+        foreign_key="problemdb.id",
+        default=None,
+        ondelete="CASCADE"
+    )
 
     # Back populates
     problem: ProblemDB | None = Relationship(back_populates="extra_funcs")
@@ -543,7 +617,11 @@ class DiscreteRepresentationDB(_DiscreteRepresentationDB, table=True):
     """The SQLModel equivalent to `DiscreteRepresentation`."""
 
     id: int | None = Field(primary_key=True, default=None)
-    problem_id: int | None = Field(foreign_key="problemdb.id", default=None)
+    problem_id: int | None = Field(
+        foreign_key="problemdb.id",
+        default=None,
+        ondelete="CASCADE"
+    )
 
     # Back populates
     problem: ProblemDB | None = Relationship(back_populates="discrete_representation")
@@ -563,7 +641,11 @@ class SimulatorDB(_SimulatorDB, table=True):
     """The SQLModel equivalent to `Simulator`."""
 
     id: int | None = Field(primary_key=True, default=None)
-    problem_id: int | None = Field(foreign_key="problemdb.id", default=None)
+    problem_id: int | None = Field(
+        foreign_key="problemdb.id",
+        default=None,
+        ondelete="CASCADE"
+    )
 
     # Back populates
     problem: ProblemDB | None = Relationship(back_populates="simulators")

@@ -25,9 +25,21 @@ class UserSavedSolutionDB(UserSavedSolutionBase, table=True):
 
     id: int | None = Field(primary_key=True, default=None)
     name: str | None = Field(default=None, nullable=True)  # Optional name for the solution
-    user_id: int | None = Field(foreign_key="user.id", default=None)
-    problem_id: int | None = Field(foreign_key="problemdb.id", default=None)
-    state_id: int | None = Field(foreign_key="statedb.id", default=None)
+    user_id: int | None = Field(
+        foreign_key="user.id", 
+        default=None, 
+        ondelete="CASCADE"
+    )
+    problem_id: int | None = Field(
+        foreign_key="problemdb.id",
+        default=None, 
+        ondelete="CASCADE"
+    )
+    state_id: int | None = Field(
+        foreign_key="statedb.id", 
+        default=None,
+        ondelete="CASCADE"
+    )
     # Back populates
     user: "User" = Relationship(back_populates="archive")
     problem: "ProblemDB" = Relationship(back_populates="solutions")

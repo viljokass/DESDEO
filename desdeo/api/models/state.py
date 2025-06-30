@@ -1,16 +1,17 @@
 """Defines models for representing the state of various interactive methods."""
 
-from typing import Literal
+from typing import Literal, TYPE_CHECKING
 
 from sqlalchemy.types import TypeDecorator
 from sqlmodel import JSON, Column, Field, Relationship, SQLModel
 
 from desdeo.tools import SolverResults
 
-from .archive import UserSavedSolutionDB
-from .preference import PreferenceDB
-from .problem import ProblemDB
-from .session import InteractiveSessionDB
+if TYPE_CHECKING:
+    from .archive import UserSavedSolutionDB
+    from .preference import PreferenceDB
+    from .problem import ProblemDB
+    from .session import InteractiveSessionDB
 
 
 class StateType(TypeDecorator):
@@ -123,9 +124,9 @@ class StateDB(SQLModel, table=True):
     """Database model to store interactive method state."""
 
     id: int | None = Field(primary_key=True, default=None)
-    problem_id: int | None = Field(foreign_key="problemdb.id", default=None)
-    preference_id: int | None = Field(foreign_key="preferencedb.id", default=None)
-    session_id: int | None = Field(foreign_key="interactivesessiondb.id", default=None)
+    problem_id: int | None = Field(foreign_key="problemdb.id", default=None, ondelete="CASCADE")
+    preference_id: int | None = Field(foreign_key="preferencedb.id", default=None, ondelete="CASCADE")
+    session_id: int | None = Field(foreign_key="interactivesessiondb.id", default=None, ondelete="CASCADE")
 
     # Reference to other StateDB
     parent_id: int | None = Field(foreign_key="statedb.id", default=None)
@@ -143,5 +144,5 @@ class StateDB(SQLModel, table=True):
         back_populates="state", sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
     # Parents
-    preference: "PreferenceDB" = Relationship()
+    preference: "PreferenceDB" = Relationship(back_populates="states")
     problem: "ProblemDB" = Relationship()

@@ -37,10 +37,17 @@ class InteractiveSessionDB(InteractiveSessionBase, table=True):
     """Database model to store sessions."""
 
     id: int | None = Field(primary_key=True, default=None)
-    user_id: int | None = Field(foreign_key="user.id", default=None)
+    user_id: int | None = Field(
+        foreign_key="user.id",
+        default=None, 
+        ondelete="CASCADE",
+    )
 
     info: str | None = Field(default=None)
 
     # Back populates
-    states: list["StateDB"] = Relationship(back_populates="session")
+    states: list["StateDB"] = Relationship(
+        back_populates="session", 
+        cascade_delete=True, 
+    )
     user: "User" = Relationship(back_populates="sessions")

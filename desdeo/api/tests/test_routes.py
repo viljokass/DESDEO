@@ -402,3 +402,64 @@ def test_login_logout(client: TestClient):
     # Access token NOT refreshed
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
     
+def test_delete_user(client: TestClient):
+    """Test that deleting a user works."""
+
+    # Test user to be deleted
+    dm_response = client.post(
+        "/add_new_dm",
+        data={"username": "dm", "password": "dm", "grant_type": "password"},
+        headers={"content-type": "application/x-www-form-urlencoded"},
+    )
+    assert dm_response.status_code == status.HTTP_201_CREATED
+
+    dm_access_token = login(client=client, username="dm", password="dm")
+    dm_get_themselves_response = client.get(
+        "/user_info",
+        headers={"Authorization": f"Bearer {dm_access_token}",
+                 "content-type": "application/x-www-form-urlencoded"},
+    )
+    assert dm_get_themselves_response.status_code == status.HTTP_200_OK
+
+    # Try to remove user using analyst
+    analyst_access_token = login(client=client, username="analyst", password="analyst")
+
+    # The analyst tries to delete the dm user.
+    analyst_del_dm_response = client.post(
+        "/delete_user",
+        data={"username": "dm", "password": "dm", "grant_type": "password"},
+        headers={"Authorization": f"Bearer {analyst_access_token}",
+                 "content-type": "application/x-www-form-urlencoded"},
+    )
+    # Analyst fails
+    assert analyst_del_dm_response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    # Analyst deletes themselves
+    analyst_del_themselves_response = client.post(
+        "/delete_user",
+        data={"username": "analyst", "password": "analyst", "grant_type": "password"},
+        headers={"Authorization": f"Bearer {analyst_access_token}",
+                 "content-type": "application/x-www-form-urlencoded"},
+    )
+    assert analyst_del_themselves_response.status_code == status.HTTP_200_OK
+
+    # Admin logs in
+    admin_access_token = login(client=client, username="admin", password="admin")
+
+    # Admin deletes the user to be deleted
+    admin_del_dm_response = client.post(
+        "/delete_user",
+        data={"username": "dm", "password": "dm", "grant_type": "password"},
+        headers={"Authorization": f"Bearer {admin_access_token}",
+                 "content-type": "application/x-www-form-urlencoded"},
+    )
+    assert admin_del_dm_response.status_code == status.HTTP_200_OK
+
+    dm_get_themselves_response_bad = client.get(
+        "/user_info",
+        headers={"Authorization": f"Bearer {dm_access_token}",
+                 "content-type": "application/x-www-form-urlencoded"},
+    )
+    assert dm_get_themselves_response_bad.status_code == status.HTTP_401_UNAUTHORIZED
+
+    # TODO: add checks on deleted database data

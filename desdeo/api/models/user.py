@@ -37,10 +37,22 @@ class User(UserBase, table=True):
     active_session_id: int | None = Field(default=None)
 
     # Back populates
-    archive: list["UserSavedSolutionDB"] = Relationship(back_populates="user")
-    preferences: list["PreferenceDB"] = Relationship(back_populates="user")
-    problems: list["ProblemDB"] = Relationship(back_populates="user")
-    sessions: list["InteractiveSessionDB"] = Relationship(back_populates="user")
+    archive: list["UserSavedSolutionDB"] = Relationship(
+        back_populates="user",
+        cascade_delete=True,
+    )
+    preferences: list["PreferenceDB"] = Relationship(
+        back_populates="user",
+        cascade_delete=True,
+    )
+    problems: list["ProblemDB"] = Relationship(
+        back_populates="user",
+        cascade_delete=True,
+    )
+    sessions: list["InteractiveSessionDB"] = Relationship(
+        back_populates="user",
+        cascade_delete=True,
+    )
 
 
 class UserPublic(UserBase):

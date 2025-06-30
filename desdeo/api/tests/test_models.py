@@ -22,11 +22,13 @@ from desdeo.api.models import (
     TensorConstantDB,
     TensorVariableDB,
     User,
+    UserRole,
     UserSavedSolutionBase,
     UserSavedSolutionDB,
     VariableDB,
     ProblemMetaDataDB,
-    ForestProblemMetaData
+    ForestProblemMetaData,
+    ReferencePoint
 )
 from desdeo.api.models.archive import UserSavedSolverResults
 from desdeo.api.routers.nimbus import user_save_solutions
@@ -820,3 +822,127 @@ def test_problem_metadata(session_and_user: dict[str, Session | list[User]]):
     assert metadata_0.stand_id_field == "type: string"
 
     assert problem.problem_metadata == from_db_metadata
+
+def test_cascading_user_problem(session_and_user: dict[str, Session | list[User]]):
+    """Test that deleting a user also deletes the corresponding problem(s) and related stuff."""
+
+    session = session_and_user["session"]
+    user = User(
+        username="test",
+        password_hash="test",
+        role=UserRole.dm,
+    )
+    session.add(user)
+    session.commit()
+
+    problem = ProblemDB.from_problem(simple_knapsack_vectors(), user=user)
+
+    session.add(problem)
+    session.commit()
+    session.refresh(problem)
+
+    problem_id = problem.id
+    statement_problem = select(ProblemDB).where(ProblemDB.id == problem_id)
+    statement_objectives = select(ObjectiveDB).where(ObjectiveDB.problem_id == problem_id)
+
+    from_db_problem = session.exec(statement_problem).first()
+    from_db_objectives = session.exec(statement_objectives).first()
+    assert from_db_problem.id == problem_id
+    assert from_db_objectives.id > 0
+
+    session.delete(user)
+    session.commit()
+
+    from_db_problem = session.exec(statement_problem).first()
+    from_db_objective = session.exec(statement_objectives).first()
+    assert from_db_problem == None
+    assert from_db_objective == None
+
+
+def test_cascading_preference_state(session_and_user: dict[str, Session | list[User]]):
+    """Test that deleting a preference also deletes the corresponding state"""
+
+    session = session_and_user["session"]
+    user: User = session_and_user["user"]
+
+    problem = ProblemDB.from_problem(simple_knapsack_vectors(), user=user)
+    session.add(problem)
+    session.commit()
+    session.refresh(problem)
+
+    probid = problem.id
+
+    preference = PreferenceDB(
+        user_id=user.id,
+        problem_id=problem.id,
+        preference=ReferencePoint(
+            aspiration_levels={"1": 0.66, "2": 0.33}
+        ),
+        problem=problem,
+        user=user
+    )
+
+    sesh = InteractiveSessionDB(
+        user_id=user.id,
+        info="TESTISESSIO",
+        states = [],
+        user=user,
+    )
+
+    session.add(preference)
+    session.add(sesh)
+    session.commit()
+    session.refresh(preference)
+    session.refresh(sesh)
+
+    state = StateDB(
+        problem_id=problem.id,
+        preference_id=preference.id,
+        session_id=sesh.id,
+        state=RPMState(
+            scalarization_options={"A": 2},
+            solver="AA",
+            solver_options={"A": 2},
+            solver_results=[]
+        ),
+        preference=preference,
+        problem=problem
+    )
+
+    session.add(state)
+    session.commit()
+    session.refresh(state)
+
+    statement_problem = select(ProblemDB).where(ProblemDB.id==probid)
+    statement_preference = select(PreferenceDB).where(PreferenceDB.problem_id==probid)
+    statement_session = select(InteractiveSessionDB).where(InteractiveSessionDB.user_id==user.id)
+    statement_state = select(StateDB).where(StateDB.preference_id==preference.id)
+
+    from_db_problem: ProblemDB = session.exec(statement_problem).first()
+    from_db_preference: PreferenceDB = session.exec(statement_preference).first()
+    from_db_session: InteractiveSessionDB = session.exec(statement_session).first()
+    from_db_state: StateDB = session.exec(statement_state).first()
+
+    assert from_db_problem.id == probid
+    assert from_db_preference.problem_id == probid
+    assert from_db_session.user_id == user.id
+    assert from_db_state.problem_id == from_db_problem.id
+    assert from_db_state.preference_id == from_db_preference.id
+    assert from_db_state.session_id == from_db_session.id
+
+    state_id = from_db_state.id
+
+    session.delete(preference)
+    session.commit()
+
+    statement_state = select(StateDB).where(StateDB.id == state_id)
+    from_db_state = session.exec(statement_state).first()
+
+    assert from_db_state == None # There should be no state anymore (no preferences!)
+
+    #However problem and session should both still be intact
+    from_db_problem: ProblemDB = session.exec(statement_problem).first()
+    from_db_session: InteractiveSessionDB = session.exec(statement_session).first()
+
+    assert from_db_problem != None
+    assert from_db_session != None

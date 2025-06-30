@@ -26,9 +26,21 @@ def session_fixture():
             role=UserRole.analyst,
             group="test",
         )
+
+        user_admin = User(
+            username="admin",
+            password_hash=get_password_hash("admin"),
+            role=UserRole.admin,
+            group="test",
+        )
+
         session.add(user_analyst)
+        session.add(user_admin)
+        
         session.commit()
+
         session.refresh(user_analyst)
+        session.refresh(user_admin)
 
         problem_db = ProblemDB.from_problem(dtlz2(5, 3), user=user_analyst)
         session.add(problem_db)
