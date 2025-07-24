@@ -1,7 +1,6 @@
 """Model exports."""
 
 __all__ = [
-    "UserSavedSolutionBase",
     "UserSavedSolutionDB",
     "Bounds",
     "ConstantDB",
@@ -21,6 +20,8 @@ __all__ = [
     "NIMBUSInitializationRequest",
     "NIMBUSInitializationState",
     "NIMBUSSaveRequest",
+    "NIMBUSClassificationResponse",
+    "NIMBUSSaveResponse",
     "NIMBUSSaveState",
     "ObjectiveDB",
     "PreferenceBase",
@@ -46,14 +47,16 @@ __all__ = [
     "ProblemMetaDataDB",
     "BaseProblemMetaData",
     "ForestProblemMetaData",
+    "SolutionAddress",
+    "UserSavedSolutionAddress",
     "UtopiaRequest",
     "UtopiaResponse",
     "ProblemMetaDataGetRequest",
 ]
 
-from .archive import UserSavedSolutionBase, UserSavedSolutionDB
+from .archive import UserSavedSolutionDB, SolutionAddress, UserSavedSolutionAddress
 from .generic import IntermediateSolutionRequest
-from .nimbus import NIMBUSClassificationRequest, NIMBUSInitializationRequest, NIMBUSSaveRequest
+from .nimbus import NIMBUSClassificationRequest, NIMBUSInitializationRequest, NIMBUSSaveRequest, NIMBUSClassificationResponse, NIMBUSSaveResponse
 from .preference import Bounds, PreferenceBase, PreferenceDB, ReferencePoint
 from .problem import (
     ConstantDB,

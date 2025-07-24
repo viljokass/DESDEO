@@ -1,6 +1,7 @@
 """ Defines end-points to access functionalities related to the NIMBUS method."""
 
 from typing import Annotated
+from numpy import allclose
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, or_, select
@@ -14,10 +15,14 @@ from desdeo.api.models import (
     NIMBUSInitializationState,
     NIMBUSSaveRequest,
     NIMBUSSaveState,
+    NIMBUSClassificationResponse,
+    NIMBUSSaveResponse,
     PreferenceDB,
     ProblemDB,
     StateDB,
     User,
+    UserSavedSolutionDB,
+    SolutionAddress,
 )
 from desdeo.api.routers.user_authentication import get_current_user
 from desdeo.api.utils.database import user_save_solutions
@@ -27,13 +32,44 @@ from desdeo.tools import SolverResults
 
 router = APIRouter(prefix="/method/nimbus")
 
+def filter_duplicates(
+    solutions: list[SolutionAddress]
+) -> list[SolutionAddress]:
+    """Filters out the duplicate values of objectives."""
+
+    # No solutions or only one solution. There can not be any duplicates.
+    if len(solutions) < 2:
+        return solutions
+
+    # Get the objective values
+    objective_values_list = list(map(lambda sol: sol.objective_values, solutions))
+    # Get the function symbols
+    objective_keys = [key for key in objective_values_list[0]]
+    # Get the corresponding values for functions into a list of lists of values
+    valuelists = list(map(lambda dictionary: list(map(lambda key: dictionary[key], objective_keys)), objective_values_list))
+
+    # Check duplicate indices
+    duplicate_indices = []
+    for i in range(len(solutions) - 1):
+        for j in range(i + 1, len(solutions)):
+            # If all values of the objective functions are (nearly) identical, that's a duplicate
+            if allclose(valuelists[i], valuelists[j]):
+                duplicate_indices.append(i)
+    
+    # Quite the memory hell. See If there's a smarter way to do this
+    new_solutions = []
+    for i in range(len(solutions)):
+        if i not in duplicate_indices:
+            new_solutions.append(solutions[i])
+
+    return new_solutions
 
 @router.post("/solve")
 def solve_solutions(
     request: NIMBUSClassificationRequest,
     user: Annotated[User, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_session)],
-) -> NIMBUSClassificationState:
+) -> NIMBUSClassificationResponse:
     """Solve the problem using the NIMBUS method."""
     if request.session_id is not None:
         statement = select(InteractiveSessionDB).where(InteractiveSessionDB.id == request.session_id)
@@ -89,7 +125,7 @@ def solve_solutions(
 
     else:
         # request.parent_state_id is not None
-        statement = session.select(StateDB).where(StateDB.id == request.parent_state_id)
+        statement = select(StateDB).where(StateDB.id == request.parent_state_id)
         parent_state = session.exec(statement).first()
 
         if parent_state is None:
@@ -120,7 +156,66 @@ def solve_solutions(
     session.commit()
     session.refresh(state)
 
-    return nimbus_state
+    
+    # Collect all current solutions
+    current_solutions: list[SolutionAddress] = []
+    for i in range(len(solver_results)):
+        current_solutions.append(
+            SolutionAddress(
+                objective_values=solver_results[i].optimal_objectives,
+                address_state=state.id,
+                address_result=i
+            )
+        )
+
+    # Collect all saved solutions
+    saved_solutions: list[SolutionAddress] = []
+    saved_from_db = session.exec(select(UserSavedSolutionDB).where(
+        UserSavedSolutionDB.problem_id == request.problem_id,
+        UserSavedSolutionDB.user_id == user.id
+    )).all()
+    for saved_solution in saved_from_db:
+        saved_solutions.append(
+            SolutionAddress(
+                objective_values=saved_solution.objective_values,
+                address_state=saved_solution.address_state,
+                address_result=saved_solution.address_result
+            )
+        )
+
+    saved_solutions = filter_duplicates(saved_solutions)
+
+    all_solutions: list[SolutionAddress] = []
+    parent = state
+    while parent != None:
+        # Skip over states that are not NIMBUS classification states
+        if not (parent.state.method == "nimbus" and parent.state.phase == "solve_candidates"):
+            parent = parent.parent
+            continue
+        # Get the solver results from state
+        parent_solver_results: list[SolverResults] = parent.state.solver_results
+        for i in range(len(parent_solver_results)):
+            all_solutions.append(
+                SolutionAddress(
+                    objective_values=parent_solver_results[i].optimal_objectives,
+                    address_state=parent.id,
+                    address_result=i
+                )
+            )
+        parent = parent.parent
+
+    all_solutions = filter_duplicates(all_solutions)
+
+    response = NIMBUSClassificationResponse(
+        state_id=state.id,
+        previous_preference=request.preference,
+        current_solutions=current_solutions,
+        saved_solutions=saved_solutions,
+        all_solutions=all_solutions
+    )
+
+    return response
+
 
 @router.post("/initialize")
 def initialize(
@@ -214,7 +309,7 @@ def save(
     request: NIMBUSSaveRequest,
     user: Annotated[User, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_session)],
-) -> NIMBUSSaveState:
+) -> NIMBUSSaveResponse:
     """Save solutions."""
     if request.session_id is not None:
         statement = select(InteractiveSessionDB).where(InteractiveSessionDB.id == request.session_id)
@@ -243,7 +338,7 @@ def save(
 
     else:
         # request.parent_state_id is not None
-        statement = session.select(StateDB).where(StateDB.id == request.parent_state_id)
+        statement = select(StateDB).where(StateDB.id == request.parent_state_id)
         parent_state = session.exec(statement).first()
 
         if parent_state is None:
@@ -253,7 +348,7 @@ def save(
 
     # save solver results for state in SolverResults format just for consistency (dont save name field to state)
     save_state = NIMBUSSaveState(
-        solver_results=[solution.to_solver_results() for solution in request.solutions]
+        solution_addresses=[solution.to_solution_address() for solution in request.solutions]
     )
 
     # create DB state
@@ -266,4 +361,6 @@ def save(
     # save solutions to the user's archive and add state to the DB
     user_save_solutions(state, request.solutions, user.id, session)
 
-    return save_state
+    return NIMBUSSaveResponse(
+        state_id = state.id
+    )
