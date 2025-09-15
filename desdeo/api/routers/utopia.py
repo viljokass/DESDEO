@@ -48,10 +48,12 @@ def get_utopia_data(
     actual_state = state.state
 
     if type(actual_state) is NIMBUSSaveState:
-        decision_variables = state.state.result_variable_values[0]
+        decision_variables = actual_state.result_variable_values[0]
+        objective_values = actual_state.result_objective_values[0]
 
     elif type(actual_state) is NIMBUSInitializationState:
-        decision_variables = state.state.solver_results.optimal_variables
+        decision_variables = actual_state.solver_results.optimal_variables
+        objective_values = actual_state.solver_results.optimal_objectives
 
     else:
         # Check if solver_results exists and has the needed index
@@ -66,6 +68,9 @@ def get_utopia_data(
         if not hasattr(result, "optimal_variables") or not result.optimal_variables:
             return empty_response
         decision_variables = result.optimal_variables  # expects a list of variables, won't work without.
+        objective_values = result.optimal_objectives
+
+    print(objective_values)
 
 
     from_db_metadata = session.exec(
@@ -215,7 +220,7 @@ def get_utopia_data(
         f"Income from harvesting in the first period {int(decision_variables['P_1'])}€.\n"  # Will complain about P_X if there is no P_X.
         + f"Income from harvesting in the second period {int(decision_variables['P_2'])}€.\n"  # See the comment about what is expected
         + f"Income from harvesting in the third period {int(decision_variables['P_3'])}€.\n"  # from the UtopiaRequest.
-        + f"The discounted value of the remaining forest at the end of the plan {int(decision_variables['V_end'])}€."
+        + f"The discounted value of the remaining forest at the end of the plan {int(objective_values['net_present_value'] - objective_values['logging_revenue'])}€."
     )
 
     return UtopiaResponse(
