@@ -89,13 +89,6 @@ __all__ = [  # noqa: RUF022
     "VariableDB",
     "ScoreBandsRequest",
     "ScoreBandsResponse",
-    "OptimizationPreference",
-    "VotingPreference",
-    "GNIMBUSResultResponse",
-    "FullIteration",
-    "GNIMBUSAllIterationsResponse",
-    "GNIMBUSSwitchPhaseRequest",
-    "GNIMBUSSwitchPhaseResponse",
 ]
 
 
@@ -188,12 +181,3 @@ from .gdm_aggregate import (
     GroupInfoRequest,
 )
 from .utopia import UtopiaRequest, UtopiaResponse
-from .gnimbus import (
-    OptimizationPreference,
-    VotingPreference,
-    GNIMBUSResultResponse,
-    FullIteration,
-    GNIMBUSAllIterationsResponse,
-    GNIMBUSSwitchPhaseResponse,
-    GNIMBUSSwitchPhaseRequest,
-)

@@ -23,8 +23,8 @@ from pydantic import ValidationError
 from typing import Annotated
 
 from desdeo.api.models import (
-    User,
-    Group,
+    User, 
+    Group, 
     GroupIteration,
     GroupInfoRequest,
     ProblemDB,
@@ -33,13 +33,6 @@ from desdeo.api.models import (
     GNIMBUSOptimizationState,
     GNIMBUSVotingState,
     SolutionReference,
-    OptimizationPreference,
-    VotingPreference,
-    GNIMBUSResultResponse,
-    FullIteration,
-    GNIMBUSAllIterationsResponse,
-    GNIMBUSSwitchPhaseRequest,
-    GNIMBUSSwitchPhaseResponse,
 )
 from desdeo.api.db import get_session
 from desdeo.api.routers.user_authentication import get_current_user
@@ -52,6 +45,13 @@ from desdeo.tools import SolverResults
 from desdeo.tools.scalarization import ScalarizationError
 
 from desdeo.api.routers.gdm_base import GroupManager
+from desdeo.api.models.gnimbus import (
+    OptimizationPreference,
+    VotingPreference,
+    GNIMBUSResultResponse,
+    FullIteration,
+    GNIMBUSAllIterationsResponse,
+)
 
 router = APIRouter(prefix="/gnimbus")
 
@@ -740,18 +740,12 @@ def full_iteration(
 
 @router.post("/toggle_phase")
 def toggle_phase(
-    request: GNIMBUSSwitchPhaseRequest,
+    request: GroupInfoRequest,
     user: Annotated[User, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_session)]
-) -> GNIMBUSSwitchPhaseResponse:
+) -> JSONResponse:
     """Toggle the phase from learning to decision and vice versa"""
     
-    if request.new_phase not in ["learning", "crp", "decision"]:
-        raise HTTPException(
-            detail=f"Undefined phase: {request.new_phase}! Can only be {["learning", "crp", "decision"]}",
-            status_code=status.HTTP_400_BAD_REQUEST
-        )
-
     group: Group = session.exec(select(Group).where(Group.id == request.group_id)).first()
     if group == None:
         raise HTTPException(
@@ -783,7 +777,13 @@ def toggle_phase(
         )
     
     old_phase = iteration.preferences.phase
-    new_phase = request.new_phase
+    match old_phase:
+        case "learning":
+            new_phase = "decision"
+        case "decision":
+            new_phase = "crp"
+        case "crp":
+            new_phase = "learning"
 
     preferences: OptimizationPreference = copy.deepcopy(iteration.preferences)
     preferences.phase = new_phase
@@ -793,7 +793,11 @@ def toggle_phase(
     session.commit()
     session.refresh(iteration)
 
-    return GNIMBUSSwitchPhaseResponse(
-        old_phase=old_phase,
-        new_phase=new_phase
+    return JSONResponse(
+        content={
+            "message": f"Phase switched from {old_phase} to {new_phase}.",
+            "old_phase": old_phase,
+            "new_phase": new_phase,
+        },
+        status_code=status.HTTP_200_OK
     )

@@ -221,9 +221,7 @@ def create_group(
     session.commit()
     session.refresh(group)
 
-    group_ids = user.group_ids.copy()
-    group_ids.append(group.id)
-    user.group_ids = group_ids
+    user.group_ids = [group.id]
 
     session.add(user)
     session.commit()
