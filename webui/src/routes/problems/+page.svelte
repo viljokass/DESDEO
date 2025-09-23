@@ -4,7 +4,6 @@
 	 *
 	 * @author Giomara Larraga <glarragw@jyu.fi>
 	 * @created June 2025
-	 * @updated September 2025
 	 *
 	 * @description
 	 * This page displays a list of optimization problems in DESDEO and allows users to view and interact with details for each problem.
