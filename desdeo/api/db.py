@@ -5,8 +5,13 @@ from sqlmodel import Session, create_engine
 from desdeo.api.config import DatabaseDebugConfig, SettingsConfig
 import os
 
-"""
-if SettingsConfig.debug:
+DB_USER = os.getenv("DB_USER", None)
+DB_PASSWORD = os.getenv("DB_PASSWORD", None)
+DB_HOST = os.getenv("DB_HOST", None)
+DB_PORT = os.getenv("DB_PORT", None)
+DB_NAME = os.getenv("DB_NAME", None)
+
+if None in [DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME]:
     # debug and development stuff
 
     # SQLite setup
@@ -18,17 +23,9 @@ else:
     # Postgresql setup
     # check from config.toml
     # SQLALCHEMY_DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    pass
-"""
+    # For rahti purposes, read necessary fields from environment.
 
-# For rahti purposes, read necessary fields from environment.
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = os.getenv("DB_PORT")
-DB_NAME = os.getenv("DB_NAME")
-
-engine = create_engine(f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
+    engine = create_engine(f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
 
 def get_session():
     """Yield the current database session."""
